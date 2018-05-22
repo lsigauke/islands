@@ -1,1 +1,1 @@
-alias IslandsEngine.{Coordinate, Guesses, Island}
+alias IslandsEngine.{Board, Coordinate, Guesses, Island}
