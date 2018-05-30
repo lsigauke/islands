@@ -5,8 +5,10 @@ defmodule IslandsEngine.Game do
   @players [:player1, :player2]
 
   def start_link(name) when is_binary(name) do
-    GenServer.start_link(__MODULE__, name, [])
+    GenServer.start_link(__MODULE__, name, [name: via_tuple(name)])
   end
+
+  def via_tuple(name), do: {:via, Registry, {Registry.Game, name}}
 
   @impl true
   def init(name) do
@@ -47,7 +49,7 @@ defmodule IslandsEngine.Game do
   @impl true
   def handle_call({:position_island, player, key, row, col}, _from, state_data) do
     board = player_board(state_data, player)
-    with {:ok, rules} <- Rules.check(state_data.rules, {:position_islands, player}), 
+    with {:ok, rules} <- Rules.check(state_data.rules, {:position_islands, player}),
          {:ok, coordinate} <- Coordinate.new(row, col),
          {:ok, island} <- Island.new(key, coordinate),
         %{} = board <- Board.position_island(board, key, island)
@@ -87,10 +89,10 @@ defmodule IslandsEngine.Game do
   def handle_call({:guess_coordinate, player_key, row, col}, _from, state_data) do
     opponent_key = opponent(player_key)
     opponent_board = player_board(state_data, opponent_key)
-      
+
     with {:ok, rules} <- Rules.check(state_data.rules, {:guess_coordinate, player_key}),
         {:ok, coordinate} <- Coordinate.new(row, col),
-        {hit_or_miss, forested_island, win_status, opponent_board} <- 
+        {hit_or_miss, forested_island, win_status, opponent_board} <-
           Board.guess(opponent_board, coordinate),
         {:ok, rules} <- Rules.check(rules, {:win_check, win_status})
     do
@@ -110,19 +112,19 @@ defmodule IslandsEngine.Game do
   defp update_player2_name(state_data, name) do
     put_in(state_data.player2.name, name)
   end
-  
+
   defp update_rules(state_data, rules), do: %{state_data | rules: rules}
 
-  defp reply_success(state_data, reply), do: {:reply, reply, state_data} 
+  defp reply_success(state_data, reply), do: {:reply, reply, state_data}
 
   defp player_board(state_data, player), do: Map.get(state_data, player).board
-  
+
   defp update_board(state_data, player, board) do
     Map.update!(state_data, player, fn player -> %{player | board: board} end)
   end
 
   defp update_guesses(sate_data, player_key, hit_or_miss, coordinate) do
-   update_in(sate_data[player_key].guesses, fn guesses -> 
+   update_in(sate_data[player_key].guesses, fn guesses ->
     Guesses.add(guesses, hit_or_miss, coordinate)
    end)
   end
